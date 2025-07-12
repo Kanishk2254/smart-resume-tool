@@ -185,6 +185,12 @@ elif choice == "Resume Creator":
     user_info['Skills'] = st.text_area("Skills")
     user_info['Projects'] = st.text_area("Projects")
     
+    # Optional: Add suggested keywords to enhance resume
+    suggested_keywords = st.text_area("Additional Keywords/Skills (Optional)", 
+                                     placeholder="Add any missing keywords or skills from job analysis...")
+    if suggested_keywords:
+        user_info['Additional Keywords'] = suggested_keywords
+    
     if st.button("Generate Resume"):
         pdf_path = generate_resume(user_info)
         with open(pdf_path, "rb") as f:
