@@ -27,10 +27,17 @@ SKILL_CATEGORIES = {
 
 
 def clean_text(text):
+    # Convert to lowercase
     text = text.lower()
-    text = re.sub(r"https\S+ | www\S+", "", text)
-    text = text.translate(str.maketrans('', '', re.sub(r'[^a-zA-Z\s]', '', text)))
-    text = re.sub(r'\s+', ' ', text.strip())
+    
+    # Remove URLs
+    text = re.sub(r"https?://\S+|www\.\S+", "", text)
+    
+    # Remove non-alphanumeric characters except spaces
+    text = re.sub(r"[^\w\s]", "", text)
+    
+    # Remove extra spaces
+    text = re.sub(r"\s+", " ", text).strip()
     return text
 
 
@@ -52,11 +59,14 @@ def highlight_keywords(text, keywords):
 
 def categorize_skills(text):
     skills_found = defaultdict(list)
-    text_words = set(text.split())
+    text_lower = text.lower()
+    
     for category, skills in SKILL_CATEGORIES.items():
         for skill in skills:
-            if skill in text_words:
+            # Handle compound skills (e.g., "machine learning", "next.js")
+            if skill.lower() in text_lower:
                 skills_found[category].append(skill)
+    
     return skills_found
 
 
@@ -100,20 +110,63 @@ if choice == "Resume Analyser":
                 
                 resume_words = set(resume_clean.split())
                 jd_words = set(jd_clean.split())
-                missing = sorted(jd_words - resume_words)
+                
+                # Filter out common stop words and short words
+                stop_words = {'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 
+                             'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 
+                             'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 
+                             'these', 'those', 'you', 'we', 'they', 'our', 'your', 'their', 'who', 'what', 
+                             'where', 'when', 'why', 'how', 'as', 'if', 'so', 'up', 'out', 'off', 'down', 
+                             'over', 'under', 'about', 'into', 'through', 'across', 'job', 'role', 'work', 
+                             'team', 'company', 'office', 'will', 'help', 'using', 'use', 'make', 'get', 
+                             'take', 'give', 'come', 'go', 'see', 'know', 'think', 'say', 'tell', 'want'}
+                
+                # Filter missing keywords to only include meaningful terms
+                missing = [word for word in sorted(jd_words - resume_words) 
+                          if word not in stop_words and len(word) > 2]
                 
                 st.subheader(f"📊 Job Match Score: {score}%")
+                
+                # Color-coded feedback
+                if score >= 75:
+                    st.success("🎉 Excellent match!")
+                elif score >= 50:
+                    st.warning("👍 Good match - consider adding more relevant keywords")
+                else:
+                    st.error("📈 Needs improvement - add more relevant skills and keywords")
+                
                 st.subheader("🔍 Missing Keywords:")
-                st.write(", ".join(missing) if missing else "None")
+                if missing:
+                    # Display first 30 missing keywords as bullet points
+                    missing_display = missing[:30]
+                    for keyword in missing_display:
+                        st.write(f"• {keyword}")
+                    if len(missing) > 30:
+                        st.write(f"... and {len(missing) - 30} more keywords")
+                else:
+                    st.write("✅ No missing keywords found")
                 
                 st.subheader("📝 Job Description With Matched Highlights:")
                 highlighted_jd = highlight_keywords(jd_text, resume_words)
-                st.markdown(highlighted_jd)
+                # Limit display length for better readability
+                if len(highlighted_jd) > 2000:
+                    st.markdown(highlighted_jd[:2000] + "...")
+                    st.info("Job description truncated for display. Full analysis complete.")
+                else:
+                    st.markdown(highlighted_jd)
                 
                 st.subheader("🔧 Categorized Skills Found In Resume:")
                 skill_map = categorize_skills(resume_clean)
-                for category, skills in skill_map.items():
-                    st.markdown(f"**{category}**: {', '.join(skills)}")
+                if skill_map:
+                    for category, skills in skill_map.items():
+                        if skills:
+                            st.write(f"**{category}:**")
+                            for skill in skills:
+                                st.write(f"  • {skill}")
+                            st.write("")  # Add spacing
+                else:
+                    st.write("❌ No categorized skills detected")
+                    st.info("💡 Consider adding more technical skills to your resume")
         else:
             st.error("Please upload both Resume and Job Description PDFs.")
 
